@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using System.Collections.Generic;
 
 namespace DASendLog_FTP
 {   
@@ -11,7 +12,8 @@ namespace DASendLog_FTP
         string m_strSystemPath = System.Environment.CurrentDirectory + "\\LOG\\";
         string m_strDate = "";
         string m_strZipFileName = "";
-        string m_strDateFormat = "yyyy-MM-dd_HH-mm-ss-fff";
+        string m_strDateFormat = "yyyyMMddHHmmssfff";
+        List<string> m_DelList = new List<string>();
 
         enum SendButtonType
         {
@@ -24,7 +26,7 @@ namespace DASendLog_FTP
 
         public LogForm()
         {
-            InitializeComponent();
+            InitializeComponent();            
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -90,7 +92,7 @@ namespace DASendLog_FTP
             if (this.WindowState == FormWindowState.Minimized)
             {
                 SetCurrencyTime();
-                string strFile = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) + String.Format("\\UserReport-{0}.jpg", m_strDate);    // Save to desktop
+                string strFile = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) + String.Format("\\{0}_{1}.jpg", textBox_UID.Text, m_strDate);    // Save to desktop
 
                 int screenLeft = SystemInformation.VirtualScreen.Left;
                 int screenTop = SystemInformation.VirtualScreen.Top;
@@ -146,6 +148,8 @@ namespace DASendLog_FTP
             }
 
             ConvertSendButtonType(SendButtonType.Ready);
+
+            ClearGenFile();
         }
 
         bool PrepareUserInfo()  // Create user report
@@ -154,6 +158,7 @@ namespace DASendLog_FTP
             if(SystemInfo != null)
             {
                 SystemInfo.m_dgShowMsg += new ShowMessage(ExecShowMessage);
+                SystemInfo.m_dgAddDelFilePath += new AddDelFilePath(ExecAddDelFilePath);
                 return SystemInfo.ExecGenSystemInfo();
             }                
             else
@@ -162,6 +167,7 @@ namespace DASendLog_FTP
 
         bool PreparePicture()   // Copy picture
         {            
+            /* don't copy now
             int nSelCount = checkedListBox_PictureList.CheckedItems.Count;
 
             for (int i = 0; i < nSelCount; i++)
@@ -186,6 +192,8 @@ namespace DASendLog_FTP
                 try
                 {
                     File.Copy(strFile, m_strSystemPath + strFileName);
+
+                    ExecAddDelFilePath(m_strSystemPath + strFileName);
                 }
                 catch (IOException ex)
                 {
@@ -193,6 +201,7 @@ namespace DASendLog_FTP
                     return false;
                 }
             }
+            */
 
             return true;
         }
@@ -201,10 +210,11 @@ namespace DASendLog_FTP
         { 
             try
             {
-                m_strZipFileName = m_strSystemPath + "UserReport-" + m_strDate + ".zip";
+                m_strZipFileName = m_strSystemPath + textBox_UID.Text + "_" + m_strDate + ".zip";
 
                 using (Ionic.Zip.ZipFile zip = new Ionic.Zip.ZipFile(m_strZipFileName, Encoding.GetEncoding("Big5")))
                 {
+                    // Add log file
                     foreach (string strFname in System.IO.Directory.GetFiles(m_strSystemPath, "*.*", System.IO.SearchOption.AllDirectories))
                     {
                         if (String.Compare(Path.GetExtension(strFname), ".zip", true) == 0)
@@ -214,8 +224,20 @@ namespace DASendLog_FTP
                         zip.AddFile(@strFname);
                     }
 
+                    // Add picture
+                    int nSelCount = checkedListBox_PictureList.CheckedItems.Count;
+                    for (int i = 0; i < nSelCount; i++)
+                    {
+                        string strFile = checkedListBox_PictureList.CheckedItems[i].ToString();
+                        
+                        // Add the file to the Zip archive's root folder.
+                        zip.AddFile(strFile);
+                    }
+
                     // Save the Zip file.
                     zip.Save();
+
+                    ExecAddDelFilePath(m_strZipFileName);
                 }
             }
             catch(Exception ex)
@@ -236,8 +258,7 @@ namespace DASendLog_FTP
             {
                 FTP.m_dgShowMsg += new ShowMessage(ExecShowMessage);
                 FTP.Upload(m_strZipFileName);
-            }
-                
+            }                
 
             return true;
         }
@@ -278,11 +299,40 @@ namespace DASendLog_FTP
             Application.DoEvents(); // Let button text update
         }
 
+        void ClearGenFile()
+        {
+            if (m_DelList == null)
+                return;
+
+            foreach (string myStringList in m_DelList)
+            {
+                try
+                {
+                    if (File.Exists(myStringList))
+                    {
+                        File.Delete(myStringList);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    ExecShowMessage(ex.Message);
+                }
+            }
+
+            m_DelList.Clear();
+        }
+
         ///////////////////////////////////////////////////////////////////////////////
 
         public void ExecShowMessage(string strMsg)
         {
             MessageBox.Show(strMsg, this.Text);
+        }
+
+        public void ExecAddDelFilePath(string strPath)
+        {
+            if (m_DelList != null)
+                m_DelList.Add(strPath);
         }
     }
 }

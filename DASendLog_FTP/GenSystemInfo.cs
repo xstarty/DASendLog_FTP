@@ -6,10 +6,11 @@ namespace DASendLog_FTP
     class GenSystemInfo
     {
         public event ShowMessage m_dgShowMsg;
+        public event AddDelFilePath m_dgAddDelFilePath;
 
         string m_strSystemPath = "";
         string m_strDate = "";
-        string m_strFileName = "UserReport-{0}-{1}.txt";    // Report-{UID}-{DATE}.txt
+        string m_strFileName = "{0}_{1}.txt";    // Report-{UID}-{DATE}.txt
         string m_strUID = "";
         string m_strName = "";
         string m_strPhone = "";
@@ -52,8 +53,12 @@ namespace DASendLog_FTP
                         file.WriteLine("電子信箱：" + m_strMail + "\r\n");
                         file.WriteLine("問題描述：" + m_strReport + "\r\n");
 
+                        m_dgAddDelFilePath.Invoke(strFile);
+
                         return true;
                     }
+
+                    
                 }
                 else
                 {
